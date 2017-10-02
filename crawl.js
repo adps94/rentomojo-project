@@ -3,11 +3,26 @@ var jsdom = require("jsdom");
 var csvWriter = require('csv-write-stream');
 var fs = require('fs');
 
-var START_URL = "http://www.arstechnica.com";
+var START_URL = "https://medium.com";
 
 var pagesToVisit = [];
 var concurrencyCount = 1;
 var requestPosition = 0;
+
+function parseBodyText(dom){
+  var relativeLinks = dom.window.document.querySelectorAll("a[href^='/']");
+  for(var i=0, loopLen=relativeLinks.length; i<loopLen; i++){
+    pagesToVisit.push(START_URL + relativeLinks[i].href);
+  }
+  var absoluteLinksHttps = dom.window.document.querySelectorAll("a[href^='https']");
+  for(var i=0, loopLen=absoluteLinksHttps.length; i<loopLen; i++){
+    pagesToVisit.push(absoluteLinksHttps[i].href);
+  }
+  var absoluteLinksHttp = dom.window.document.querySelectorAll("a[href^='http']");
+  for(var i=0, loopLen=absoluteLinksHttp.length; i<loopLen; i++){
+    pagesToVisit.push(absoluteLinksHttp[i].href);
+  }
+}
 
 console.log('\n Get all hyperlinks from : ',START_URL,'\n');
 request(START_URL, function(error, response, body) {
@@ -17,21 +32,10 @@ request(START_URL, function(error, response, body) {
     }else {
       var JSDOM = jsdom.JSDOM;
       var dom = new JSDOM(body);
-      var relativeLinks = dom.window.document.querySelectorAll("a[href^='/']");
-      for(var i=0, loopLen=relativeLinks.length; i<loopLen; i++){
-        pagesToVisit.push(START_URL + relativeLinks[i].href);
-      }
-      var absoluteLinksHttps = dom.window.document.querySelectorAll("a[href^='https']");
-      for(var i=0, loopLen=absoluteLinksHttps.length; i<loopLen; i++){
-        pagesToVisit.push(absoluteLinksHttps[i].href);
-      }
-      var absoluteLinksHttp = dom.window.document.querySelectorAll("a[href^='http']");
-      for(var i=0, loopLen=absoluteLinksHttp.length; i<loopLen; i++){
-        pagesToVisit.push(absoluteLinksHttp[i].href);
-      }
+      parseBodyText(dom);
       console.log('\n Total '+pagesToVisit.length+' hyperlinks \n');
-      console.log('\n Fire first five requests \n');
-      startFetching(); 
+      console.log('\n Trigger first five requests \n');
+      startFetching();
     }
 });
 
@@ -70,4 +74,3 @@ function fireRequest(url){
     }
   });
 }
-
