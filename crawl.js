@@ -10,6 +10,7 @@ var pagesToVisit = [];
 var concurrencyCount = 1;
 var requestPosition = 0;
 
+// Trigger request to url's
 function startFetching(){
   var q = async.queue(function (url, callback) {
     console.log('GET '+url+'\n');
@@ -36,21 +37,24 @@ function startFetching(){
     writer.write(csvOut);
     writer.end();
   }
-  
+
   // Add urls to the queue
   for (var i = 0; i < pagesToVisit.length; i++) {
-    requestPosition = i; 
+    requestPosition = i;
     q.push(pagesToVisit[i], function (err) {
-      
+
     });
   }
 }
 
+// Parse hyperlinks from html body
 function parseBodyText(dom){
+  // for relative paths
   var relativeLinks = dom.window.document.querySelectorAll("a[href^='/']");
   for(var i=0, loopLen=relativeLinks.length; i<loopLen; i++){
     pagesToVisit.push(START_URL + relativeLinks[i].href);
   }
+  // for absolute paths
   var absoluteLinksHttps = dom.window.document.querySelectorAll("a[href^='https']");
   for(var i=0, loopLen=absoluteLinksHttps.length; i<loopLen; i++){
     pagesToVisit.push(absoluteLinksHttps[i].href);
@@ -61,9 +65,9 @@ function parseBodyText(dom){
   }
 }
 
+// Get hyperlnks from start url
 console.log('\n Get all hyperlinks from : ',START_URL,'\n');
 request(START_URL, function(error, response, body) {
-    // Check status code (200 is HTTP OK)
     if(!response){
       console.log('Network Error');
     }else {
