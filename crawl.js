@@ -2,12 +2,49 @@ var request = require('request');
 var jsdom = require("jsdom");
 var csvWriter = require('csv-write-stream');
 var fs = require('fs');
+var async = require('async');
 
 var START_URL = "https://medium.com";
 
 var pagesToVisit = [];
 var concurrencyCount = 1;
 var requestPosition = 0;
+
+function startFetching(){
+  var q = async.queue(function (url, callback) {
+    console.log('GET '+url+'\n');
+    request(url, function(error, response, body) {
+      if(!response){
+        console.log('Network Error');
+      } else {
+        console.log('\n---------------------------------------------------------------');
+        console.log(response.statusCode +' Response from ' +response.request.uri.href);
+        console.log('---------------------------------------------------------------');
+        callback();
+      }
+    });
+  }, 5);
+
+  // Assign a callback
+  q.drain = function() {
+    console.log('All hyperlinks have been processed');
+    var csvOut = {
+      hyperlinks : pagesToVisit
+    };
+    var writer = csvWriter();
+    writer.pipe(fs.createWriteStream('output.csv'));
+    writer.write(csvOut);
+    writer.end();
+  }
+  
+  // Add urls to the queue
+  for (var i = 0; i < pagesToVisit.length; i++) {
+    requestPosition = i; 
+    q.push(pagesToVisit[i], function (err) {
+      
+    });
+  }
+}
 
 function parseBodyText(dom){
   var relativeLinks = dom.window.document.querySelectorAll("a[href^='/']");
@@ -38,39 +75,3 @@ request(START_URL, function(error, response, body) {
       startFetching();
     }
 });
-
-function startFetching(){
-  for (var i = 0; i < 5; i++) {
-    fireRequest(pagesToVisit[requestPosition]);
-    requestPosition++;
-  }
-}
-
-
-function fireRequest(url){
-  console.log('GET '+url+'\n');
-  concurrencyCount++;
-  request(url, function(error, response, body) {
-    if(!response){
-      console.log('Network Error');
-    } else {
-      console.log('\n---------------------------------------------------------------');
-      console.log(response.statusCode +' Response from ' +response.request.uri.href);
-      console.log('---------------------------------------------------------------');
-      concurrencyCount--;
-      requestPosition++;
-      if(requestPosition < pagesToVisit.length && concurrencyCount < 6){
-        fireRequest(pagesToVisit[requestPosition]);
-      }else {
-        var csvOut = {
-          hyperlinks : pagesToVisit
-        };
-        var writer = csvWriter();
-        writer.pipe(fs.createWriteStream('output.csv'));
-        writer.write(csvOut);
-        writer.end();
-        return;
-      }
-    }
-  });
-}
